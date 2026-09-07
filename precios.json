@@ -1,0 +1,18 @@
+{
+  "fecha": "2026-09-07",
+  "precios": {
+    "acero_carbono": 2831,
+    "inox": 11672,
+    "aluminio": 12671,
+    "mdf": 1437,
+    "acrilico": 28315
+  },
+  "fuentes": {
+    "acero_carbono": "ok",
+    "inox": "ok",
+    "aluminio": "ok",
+    "mdf": "ok",
+    "acrilico": "ok"
+  },
+  "detalle": "Precios ARS con IVA por kg, relevados automáticamente"
+}
