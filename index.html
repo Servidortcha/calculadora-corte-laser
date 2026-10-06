@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora Corte Láser</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
+  @media print { .no-print { display: none !important; } body { background: white !important; } }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+<div class="max-w-6xl mx-auto p-4 md:p-6">
+  <!-- Header -->
+  <div class="bg-white rounded-2xl shadow-sm p-6 mb-6 flex flex-col md:flex-row justify-between gap-4">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Calculadora Precio Corte Láser</h1>
+      <p class="text-slate-500 text-sm mt-1">Fibra / CO2 - Acero, Inox, Aluminio, MDF, Acrílico. Precio = Material + Tiempo máquina + Margen + IVA</p>
+      <div class="mt-3 inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-3 py-1.5 rounded-full">
+        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+        Precios de chapas actualizados <b>Sep 2026</b> desde internet (AR) — ver detalle abajo
+      </div>
+    </div>
+    <div class="flex gap-2 items-start no-print">
+      <button onclick="window.print()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800">Imprimir / PDF</button>
+      <button onclick="resetear()" class="px-4 py-2 bg-white border rounded-xl text-sm font-medium hover:bg-slate-50">Reset</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <!-- Col izquierda: inputs -->
+    <div class="lg:col-span-3 space-y-6">
+      
+      <!-- 1. Pieza -->
+      <div class="bg-white rounded-2xl shadow-sm p-5">
+        <h2 class="font-bold text-slate-900 mb-1 flex items-center gap-2"><span class="bg-blue-600 text-white w-6 h-6 rounded-full grid place-items-center text-xs">1</span> Pieza y Material</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Material</label>
+            <select id="material" class="w-full mt-1 border rounded-xl px-3 py-2.5 bg-white">
+              <option value="acero_carbono">Acero al Carbono</option>
+              <option value="inox">Acero Inoxidable (304)</option>
+              <option value="aluminio">Aluminio</option>
+              <option value="mdf">MDF / Madera</option>
+              <option value="acrilico">Acrílico</option>
+              <option value="custom">Otro (personalizado)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Espesor (mm)</label>
+            <select id="espesor" class="w-full mt-1 border rounded-xl px-3 py-2.5 bg-white"></select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Potencia láser</label>
+            <select id="potencia" class="w-full mt-1 border rounded-xl px-3 py-2.5 bg-white">
+              <option value="1000">1 kW (CO2)</option>
+              <option value="1500">1.5 kW</option>
+              <option value="3000" selected>3 kW Fibra</option>
+              <option value="6000">6 kW Fibra</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Cantidad de piezas</label>
+            <input id="cantidad" type="number" value="1" min="1" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 mt-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Largo (mm)</label>
+            <input id="largo" type="number" value="300" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Ancho (mm)</label>
+            <input id="ancho" type="number" value="200" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Área</label>
+            <div id="areaOut" class="mt-1 bg-slate-50 border rounded-xl px-3 py-2.5 text-sm font-mono">0.060 m²</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Longitud total de corte (mm) <span class="normal-case font-normal text-slate-400">perímetro + internos</span></label>
+            <input id="longitud" type="number" value="1000" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+            <div class="flex gap-2 mt-2 no-print">
+              <button onclick="estimarPerimetro()" class="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full border border-blue-200 hover:bg-blue-100">Usar perímetro rectángulo (2×(L+A))</button>
+              <span id="perimetroHint" class="text-xs text-slate-400 self-center"></span>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Nº perforaciones / piercings</label>
+            <input id="piercings" type="number" value="2" min="0" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+            <p class="text-[11px] text-slate-400 mt-1">Cada perforación suma tiempo (depende de espesor)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Costos -->
+      <div class="bg-white rounded-2xl shadow-sm p-5">
+        <h2 class="font-bold text-slate-900 mb-1 flex items-center gap-2"><span class="bg-blue-600 text-white w-6 h-6 rounded-full grid place-items-center text-xs">2</span> Costos y Tarifas</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Precio material ($ / kg) <span class="text-emerald-600 normal-case">● auto desde internet</span></label>
+            <input id="precioKg" type="number" value="2800" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+            <p class="text-[11px] text-slate-400 mt-1">Se convierte a $/m² según densidad y espesor. <button onclick="aplicarPrecioInternet()" class="text-blue-600 underline">Restaurar precio internet</button> • Dejá 0 si usás $/m² abajo.</p>
+            <p id="precioFuente" class="text-[11px] text-emerald-600 mt-1 font-medium"></p>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">O precio directo ($ / m²)</label>
+            <input id="precioM2" type="number" value="0" placeholder="0 = auto desde $/kg" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+            <p id="precioM2Calc" class="text-[11px] text-blue-600 mt-1 font-medium"></p>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Tarifa máquina ($ / min)</label>
+            <input id="tarifaMin" type="number" value="450" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+            <p class="text-[11px] text-slate-400 mt-1">Incluye amortización, energía, operario. Típico 250-800 $/min</p>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Costo piercing / perforación ($)</label>
+            <input id="costoPerfo" type="number" value="0" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+            <p class="text-[11px] text-slate-400 mt-1">Opcional. Si es 0 se calcula solo por tiempo</p>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">% Desperdicio / aprovechamiento</label>
+            <input id="desperdicio" type="number" value="10" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Tiempo setup por lote (min)</label>
+            <input id="setup" type="number" value="3" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">% Margen / Ganancia</label>
+            <input id="margen" type="number" value="40" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">% IVA</label>
+            <input id="iva" type="number" value="21" class="w-full mt-1 border rounded-xl px-3 py-2.5">
+          </div>
+        </div>
+        <label class="flex items-center gap-2 mt-4 text-sm">
+          <input id="ivaIncluido" type="checkbox" checked class="rounded"> <span>Mostrar precio con y sin IVA</span>
+        </label>
+      </div>
+
+      <!-- 3. Precios internet -->
+      <div class="bg-white rounded-2xl shadow-sm p-5 border border-emerald-100">
+        <div class="flex justify-between items-center">
+          <h2 class="font-bold text-slate-900 flex items-center gap-2"><span class="bg-emerald-600 text-white w-6 h-6 rounded-full grid place-items-center text-xs">3</span> Precios de chapas relevados en internet (Sep 2026)</h2>
+          <button onclick="togglePrecios()" id="btnPrecios" class="text-xs px-3 py-1.5 border rounded-full hover:bg-slate-50">Ver fuentes</button>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">Valores con IVA incluido (precio público argentino). La calculadora los usa como base y convierte a $/m² según espesor. Podés editarlos.</p>
+        <div id="preciosBox" class="mt-4 overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead><tr class="text-slate-500 border-b"><th class="text-left py-2">Material</th><th>$ / kg</th><th>Ejemplo $/m² (1mm)</th><th>Ejemplo $/m² (3mm)</th><th>Fuente</th></tr></thead>
+            <tbody id="preciosTable" class="text-slate-700"></tbody>
+          </table>
+          <div class="mt-3 bg-slate-50 rounded-xl p-3 text-[11px] leading-relaxed text-slate-600">
+            <b>Fuentes verificadas 2026-09-07:</b><br>
+            • Acero carbono LAF: Serviprod — Chapa lisa 0.90mm $40.048 (2m²), 1.25mm $55.160 (2m²), 1.60mm $102.273 (2.88m²) → ~$2.750-2.830 /kg<br>
+            • Inox 304: acerosinoxidables.com.ar — 0.5mm $81.950, 0.6mm $94.260, 1.0mm $140.680 (2m²) + Provecom $88k-$158k → ~$10.000 /kg<br>
+            • Aluminio Aluar: Alumina Argentina — 0.5mm $35.696, 0.8mm $56.883, 1mm $69.408 (2m²), 6mm $548.795 → ~$13.000-13.200 /kg<br>
+            • MDF: Sodimac — 3mm 183×260cm $15.389 (4.76m² = $3.233/m²), 18mm 366×183cm $72.701 (6.70m²) → ~$1.050 /kg<br>
+            • Acrílico: Laminados PAI — 3mm 125×247cm $310.700 (3.09m² = $100.631/m²), 5mm $522.500 (3.09m² = $169.239/m²) → ~$28.300 /kg<br>
+            <span class="text-slate-400">Precios pueden variar por proveedor, terminación (2B/esmerilada) y zona. Actualizá tu tarifa real en el campo $/kg.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Tabla velocidades editable -->
+      <div class="bg-white rounded-2xl shadow-sm p-5">
+        <div class="flex justify-between items-center">
+          <h2 class="font-bold text-slate-900 flex items-center gap-2"><span class="bg-slate-900 text-white w-6 h-6 rounded-full grid place-items-center text-xs">4</span> Velocidad de corte (mm/min)</h2>
+          <button onclick="toggleVelocidades()" id="btnVel" class="text-xs px-3 py-1.5 border rounded-full hover:bg-slate-50">Mostrar / Editar</button>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">Ajustá según tu máquina. Se usa para estimar tiempo. Valores por defecto para 3kW.</p>
+        <div id="velBox" class="hidden mt-4 overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead><tr class="text-slate-500 border-b"><th class="text-left py-2">Espesor</th><th>Acero</th><th>Inox</th><th>Aluminio</th><th>MDF</th><th>Acrílico</th></tr></thead>
+            <tbody id="velTable" class="font-mono"></tbody>
+          </table>
+          <p class="text-[11px] text-slate-400 mt-2">Tip: velocidades caen ~40% si tenés 1.5kW y suben ~35% si tenés 6kW (se ajusta automático).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Col derecha: resultados -->
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-slate-900 text-white rounded-2xl shadow-lg p-6 sticky top-6">
+        <h3 class="text-sm font-semibold tracking-widest text-slate-400 uppercase">Presupuesto Estimado</h3>
+        
+        <div class="mt-4 p-4 bg-white/10 rounded-xl">
+          <div class="text-xs text-slate-300">Precio unitario sin IVA</div>
+          <div id="precioUnit" class="text-3xl font-bold mt-1">$ 0,00</div>
+          <div id="precioUnitConIva" class="text-sm text-emerald-300 font-medium mt-1"></div>
+          <div class="text-xs text-slate-400 mt-2">Precio total x <span id="cantOut">1</span> u. sin IVA: <span id="precioTotal" class="font-bold text-white"></span></div>
+          <div id="precioTotalIva" class="text-xs text-slate-300"></div>
+        </div>
+
+        <div class="mt-4 space-y-2 text-sm">
+          <div class="flex justify-between py-2 border-b border-white/10">
+            <span class="text-slate-400">Área pieza</span><span id="rArea" class="font-mono"></span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-white/10">
+            <span class="text-slate-400">Peso estimado</span><span id="rPeso" class="font-mono"></span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-white/10">
+            <span class="text-slate-400">Velocidad usada</span><span id="rVel" class="font-mono"></span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-white/10">
+            <span class="text-slate-400">Tiempo corte / pieza</span><span id="rTiempo" class="font-mono text-amber-300"></span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-white/10">
+            <span class="text-slate-400">Tiempo total lote</span><span id="rTiempoTotal" class="font-mono"></span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-white/10">
+            <span class="text-slate-400">Costo material / u.</span><span id="rMat" class="font-mono"></span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-white/10">
+            <span class="text-slate-400">Costo corte / u.</span><span id="rCorte" class="font-mono"></span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-white/10">
+            <span class="text-slate-400">Costo setup prorrateado</span><span id="rSetup" class="font-mono"></span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-white/10">
+            <span class="text-slate-400">Subtotal costo</span><span id="rSubtotal" class="font-mono"></span>
+          </div>
+          <div class="flex justify-between py-2">
+            <span class="text-slate-400">Margen (<span id="rMargenPct">40</span>%)</span><span id="rMargen" class="font-mono text-emerald-300"></span>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-2 no-print">
+          <button onclick="copiarResumen()" class="py-2.5 bg-white text-slate-900 rounded-xl text-sm font-semibold hover:bg-slate-100">Copiar resumen</button>
+          <button onclick="guardarPreset()" class="py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-500">Guardar tarifa</button>
+        </div>
+        <p id="copyMsg" class="text-xs text-emerald-300 mt-2 hidden">Copiado al portapapeles ✓</p>
+
+        <div class="mt-6 bg-amber-400/20 border border-amber-400/30 rounded-xl p-3 text-xs leading-relaxed text-amber-100">
+          <strong class="text-amber-200">Cómo se calcula:</strong><br>
+          Peso = Área × Espesor × Densidad<br>
+          $ Material = (Peso × $/kg  ó Área × $/m²) × (1+ desperdicio%)<br>
+          Tiempo = Longitud / Velocidad + Piercings × t_perforación + Setup/lote<br>
+          $ Corte = Tiempo × Tarifa/min
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm p-5">
+        <h3 class="font-bold text-slate-900 text-sm">Desglose por pieza (sin IVA)</h3>
+        <div class="mt-3 h-3 bg-slate-100 rounded-full overflow-hidden flex">
+          <div id="barMat" class="bg-sky-500 h-full" style="width: 30%"></div>
+          <div id="barCorte" class="bg-amber-500 h-full" style="width: 40%"></div>
+          <div id="barMargen" class="bg-emerald-500 h-full" style="width: 30%"></div>
+        </div>
+        <div class="flex gap-4 mt-2 text-[11px] text-slate-500">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 bg-sky-500 rounded-full"></span> Material</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 bg-amber-500 rounded-full"></span> Corte</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Margen</span>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm p-5 no-print">
+        <h3 class="font-bold text-slate-900 text-sm">Presets rápidos</h3>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <button onclick="aplicarPreset('chapa1mm')" class="text-xs border rounded-xl py-2 hover:bg-slate-50">Chapa 1mm - 100u</button>
+          <button onclick="aplicarPreset('inox2mm')" class="text-xs border rounded-xl py-2 hover:bg-slate-50">Inox 2mm - 10u</button>
+          <button onclick="aplicarPreset('mdf3mm')" class="text-xs border rounded-xl py-2 hover:bg-slate-50">MDF 3mm - CO2</button>
+          <button onclick="aplicarPreset('acrilico5mm')" class="text-xs border rounded-xl py-2 hover:bg-slate-50">Acrílico 5mm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="text-center text-xs text-slate-400 mt-8">Hecho para cotizar rápido. Ajustá $/kg, tarifa/min y velocidades a tu máquina real para máxima precisión. Los valores por defecto son estimativos.</p>
+</div>
+
+<script>
+const densidades = { // kg/m3
+  acero_carbono: 7850,
+  inox: 7900,
+  aluminio: 2700,
+  mdf: 750,
+  acrilico: 1190,
+  custom: 7850
+};
+
+// Precios relevados internet Sep 2026 - ARS con IVA incluido
+const preciosInternet = {
+  acero_carbono: { kg: 2831, fuente: "Serviprod" },
+  inox: { kg: 11672, fuente: "acerosinoxidables.com.ar / Provecom" },
+  aluminio: { kg: 12671, fuente: "Alumina Argentina (Aluar)" },
+  mdf: { kg: 1437, fuente: "Sodimac / Maderera" },
+  acrilico: { kg: 28315, fuente: "Laminados PAI" },
+  custom: { kg: 2831, fuente: "-" }
+};
+
+// velocidades base mm/min para 3kW por espesor
+let velocidades = {
+  "0.8": { acero_carbono: 18000, inox: 16000, aluminio: 14000, mdf: 12000, acrilico: 10000, custom: 15000 },
+  "1":   { acero_carbono: 15000, inox: 13000, aluminio: 12000, mdf: 10000, acrilico: 8500, custom: 12000 },
+  "1.5": { acero_carbono: 11000, inox: 9500, aluminio: 8500, mdf: 8000, acrilico: 7000, custom: 9000 },
+  "2":   { acero_carbono: 8500, inox: 7000, aluminio: 6500, mdf: 6500, acrilico: 5500, custom: 7000 },
+  "3":   { acero_carbono: 5000, inox: 3800, aluminio: 3500, mdf: 4500, acrilico: 3500, custom: 4000 },
+  "4":   { acero_carbono: 3200, inox: 2200, aluminio: 2000, mdf: 3000, acrilico: 2200, custom: 2500 },
+  "5":   { acero_carbono: 2200, inox: 1500, aluminio: 1300, mdf: 2000, acrilico: 1500, custom: 1700 },
+  "6":   { acero_carbono: 1600, inox: 1100, aluminio: 900, mdf: 1500, acrilico: 1000, custom: 1200 },
+  "8":   { acero_carbono: 900, inox: 600, aluminio: 500, mdf: 900, acrilico: 600, custom: 700 },
+  "10":  { acero_carbono: 600, inox: 400, aluminio: 300, mdf: 600, acrilico: 400, custom: 450 },
+  "12":  { acero_carbono: 400, inox: 250, aluminio: 180, mdf: 400, acrilico: 250, custom: 300 }
+};
+
+// tiempo perforacion segundos por espesor
+const tPerfo = { "0.8":0.3, "1":0.4, "1.5":0.6, "2":0.8, "3":1.2, "4":1.8, "5":2.5, "6":3.2, "8":5, "10":7, "12":10 };
+
+const espesores = Object.keys(velocidades);
+
+function init() {
+  const sel = document.getElementById('espesor');
+  sel.innerHTML = espesores.map(e => `<option value="${e}" ${e==="2"?"selected":""}>${e} mm</option>`).join('');
+  renderVelTable();
+  renderPreciosTable();
+  // si no hay preset guardado, cargar precio internet inicial
+  const hasSaved = localStorage.getItem('laserCalc');
+  if(!hasSaved) aplicarPrecioInternet();
+  else cargarPresetGuardado();
+  bind();
+  calcular();
+  // auto-actualizar precio al cambiar material/espesor si viene de internet
+  document.getElementById('material').addEventListener('change', ()=>{
+    // solo auto-actualiza si el usuario no personalizó manualmente (detectamos si valor actual es de tabla internet)
+    const mat = document.getElementById('material').value;
+    const sugerido = preciosInternet[mat]?.kg || 2800;
+    // siempre sugerir pero no pisar si usuario ya puso precio manual distinto hace poco? => por simplicidad, actualizar
+    document.getElementById('precioKg').value = sugerido;
+    calcular();
+  });
+}
+
+function bind() {
+  ["material","espesor","potencia","cantidad","largo","ancho","longitud","piercings","precioKg","precioM2","tarifaMin","costoPerfo","desperdicio","setup","margen","iva","ivaIncluido"].forEach(id=>{
+    document.getElementById(id).addEventListener('input', calcular);
+    document.getElementById(id).addEventListener('change', calcular);
+  });
+}
+
+function factorPotencia(p){
+  // 3kW = base 1.0
+  if(p==1000) return 0.45;
+  if(p==1500) return 0.62;
+  if(p==3000) return 1.0;
+  if(p==6000) return 1.45;
+  return 1.0;
+}
+
+function getVelocidad(material, espesor, potencia){
+  let v = velocidades[espesor]?.[material] || 3000;
+  v = v * factorPotencia(Number(potencia));
+  return Math.round(v);
+}
+
+function estimarPerimetro(){
+  const L = Number(document.getElementById('largo').value)||0;
+  const A = Number(document.getElementById('ancho').value)||0;
+  const per = 2*(L+A);
+  document.getElementById('longitud').value = per;
+  calcular();
+}
+
+function calcular(){
+  const material = document.getElementById('material').value;
+  const espesor = document.getElementById('espesor').value;
+  const potencia = document.getElementById('potencia').value;
+  const cantidad = Math.max(1, Number(document.getElementById('cantidad').value)||1);
+  const largo = Number(document.getElementById('largo').value)||0;
+  const ancho = Number(document.getElementById('ancho').value)||0;
+  const longitud = Number(document.getElementById('longitud').value)||0;
+  const piercings = Number(document.getElementById('piercings').value)||0;
+  const precioKg = Number(document.getElementById('precioKg').value)||0;
+  const precioM2input = Number(document.getElementById('precioM2').value)||0;
+  const tarifaMin = Number(document.getElementById('tarifaMin').value)||0;
+  const costoPerfo = Number(document.getElementById('costoPerfo').value)||0;
+  const desperdicio = Number(document.getElementById('desperdicio').value)||0;
+  const setup = Number(document.getElementById('setup').value)||0;
+  const margen = Number(document.getElementById('margen').value)||0;
+  const iva = Number(document.getElementById('iva').value)||0;
+
+  // area y peso
+  const areaM2 = (largo/1000)*(ancho/1000);
+  const densidad = densidades[material] || 7850;
+  const espM = Number(espesor)/1000;
+  const pesoKg = areaM2 * espM * densidad;
+
+  // precio m2
+  let precioM2 = precioM2input;
+  let precioM2Auto = pesoKg>0 ? (pesoKg/areaM2)*precioKg : 0; // peso/area = esp*densidad
+  // alternativa directa: espM*densidad*precioKg
+  if (areaM2>0) precioM2Auto = espM * densidad * precioKg;
+  if (!precioM2 || precioM2===0) precioM2 = precioM2Auto;
+
+  document.getElementById('precioM2Calc').textContent = precioKg>0 ? `Calculado: $${precioM2Auto.toLocaleString('es-AR',{maximumFractionDigits:0})} / m²` : '';
+  const fuente = preciosInternet[material]?.fuente || "";
+  const esPrecioInternet = preciosInternet[material] && Number(precioKg) === preciosInternet[material].kg;
+  document.getElementById('precioFuente').textContent = esPrecioInternet ? `✓ Precio internet: $${precioKg.toLocaleString('es-AR')} /kg — ${fuente}` : (fuente ? `Sugerido internet para ${material}: $${preciosInternet[material].kg.toLocaleString('es-AR')}/kg (${fuente})` : '');
+  document.getElementById('areaOut').textContent = `${areaM2.toFixed(4)} m² • ${pesoKg.toFixed(3)} kg`;
+  document.getElementById('perimetroHint').textContent = largo&&ancho ? `Perímetro: ${2*(largo+ancho)} mm` : '';
+
+  // velocidad y tiempos
+  const vel = getVelocidad(material, espesor, potencia);
+  const tPer = tPerfo[espesor] || 1.5;
+  const tiempoCorteMin = longitud>0 && vel>0 ? (longitud / vel) : 0;
+  const tiempoPerfoMin = (piercings * tPer) / 60;
+  const tiempoPiezaMin = tiempoCorteMin + tiempoPerfoMin;
+  const tiempoLoteMin = tiempoPiezaMin * cantidad + setup;
+  const tiempoUnitConSetup = cantidad>0 ? tiempoLoteMin / cantidad : tiempoPiezaMin;
+
+  // costos
+  const costoMatUnit = areaM2 * precioM2 * (1 + desperdicio/100);
+  const costoCorteUnit = tiempoPiezaMin * tarifaMin + piercings * costoPerfo;
+  const costoSetupUnit = cantidad>0 ? (setup * tarifaMin) / cantidad : 0;
+  const costoCorteConSetup = costoCorteUnit + costoSetupUnit;
+  const subtotal = costoMatUnit + costoCorteConSetup;
+  const ganancia = subtotal * (margen/100);
+  const precioSinIva = subtotal + ganancia;
+  const precioConIva = precioSinIva * (1 + iva/100);
+  const totalSinIva = precioSinIva * cantidad;
+  const totalConIva = precioConIva * cantidad;
+
+  // renders
+  const fmt = (n) => n.toLocaleString('es-AR', {style:'currency', currency:'ARS', maximumFractionDigits:0});
+  const fmt2 = (n) => n.toLocaleString('es-AR', {maximumFractionDigits:2});
+  document.getElementById('precioUnit').textContent = fmt(precioSinIva);
+  document.getElementById('precioUnitConIva').textContent = `Con IVA (${iva}%): ${fmt(precioConIva)}`;
+  document.getElementById('cantOut').textContent = cantidad;
+  document.getElementById('precioTotal').textContent = fmt(totalSinIva);
+  document.getElementById('precioTotalIva').textContent = `Con IVA: ${fmt(totalConIva)}`;
+
+  document.getElementById('rArea').textContent = `${fmt2(areaM2)} m²`;
+  document.getElementById('rPeso').textContent = `${fmt2(pesoKg)} kg`;
+  document.getElementById('rVel').textContent = `${vel.toLocaleString('es-AR')} mm/min`;
+  document.getElementById('rTiempo').textContent = `${fmt2(tiempoPiezaMin)} min (${fmt2(tiempoPiezaMin*60)} s)`;
+  document.getElementById('rTiempoTotal').textContent = `${fmt2(tiempoLoteMin)} min`;
+  document.getElementById('rMat').textContent = fmt(costoMatUnit);
+  document.getElementById('rCorte').textContent = fmt(costoCorteConSetup);
+  document.getElementById('rSetup').textContent = fmt(costoSetupUnit);
+  document.getElementById('rSubtotal').textContent = fmt(subtotal);
+  document.getElementById('rMargenPct').textContent = margen;
+  document.getElementById('rMargen').textContent = fmt(ganancia);
+
+  // barra
+  const totalBar = precioSinIva || 1;
+  const pMat = (costoMatUnit/totalBar*100).toFixed(1);
+  const pCorte = (costoCorteConSetup/totalBar*100).toFixed(1);
+  const pMar = (ganancia/totalBar*100).toFixed(1);
+  document.getElementById('barMat').style.width = pMat+'%';
+  document.getElementById('barCorte').style.width = pCorte+'%';
+  document.getElementById('barMargen').style.width = pMar+'%';
+
+  // guardar en local
+  localStorage.setItem('laserCalc', JSON.stringify({
+    material, espesor, potencia, cantidad, largo, ancho, longitud, piercings,
+    precioKg, precioM2input, tarifaMin, costoPerfo, desperdicio, setup, margen, iva
+  }));
+}
+
+function renderPreciosTable(){
+  const tbody = document.getElementById('preciosTable');
+  const calcM2 = (mat, esp) => {
+    const dens = densidades[mat];
+    const kg = preciosInternet[mat].kg;
+    return (Number(esp)/1000) * dens * kg;
+  };
+  const mats = [
+    {id:'acero_carbono', label:'Acero carbono'},
+    {id:'inox', label:'Inox 304'},
+    {id:'aluminio', label:'Aluminio'},
+    {id:'mdf', label:'MDF'},
+    {id:'acrilico', label:'Acrílico'}
+  ];
+  tbody.innerHTML = mats.map(m=>`
+    <tr class="border-b hover:bg-slate-50">
+      <td class="py-2 font-semibold">${m.label}</td>
+      <td><input type="number" value="${preciosInternet[m.id].kg}" data-mat="${m.id}" onchange="updatePrecioInternet(this)" class="w-24 border rounded px-2 py-1 font-mono text-center"></td>
+      <td class="text-center font-mono">$${Math.round(calcM2(m.id,'1')).toLocaleString('es-AR')}</td>
+      <td class="text-center font-mono">$${Math.round(calcM2(m.id,'3')).toLocaleString('es-AR')}</td>
+      <td class="text-[11px] text-slate-500">${preciosInternet[m.id].fuente}</td>
+    </tr>
+  `).join('');
+}
+function updatePrecioInternet(el){
+  const mat = el.dataset.mat;
+  preciosInternet[mat].kg = Number(el.value)||0;
+  if(document.getElementById('material').value===mat){
+    document.getElementById('precioKg').value = preciosInternet[mat].kg;
+    calcular();
+  }
+  renderPreciosTable();
+}
+function aplicarPrecioInternet(){
+  const mat = document.getElementById('material').value;
+  const sugerido = preciosInternet[mat]?.kg;
+  if(sugerido) document.getElementById('precioKg').value = sugerido;
+  document.getElementById('precioM2').value = 0;
+  calcular();
+}
+function togglePrecios(){
+  document.getElementById('preciosBox').classList.toggle('hidden');
+}
+function renderVelTable(){
+  const tbody = document.getElementById('velTable');
+  tbody.innerHTML = Object.entries(velocidades).map(([esp, vals])=>`
+    <tr class="border-b">
+      <td class="py-1 font-bold">${esp} mm</td>
+      ${['acero_carbono','inox','aluminio','mdf','acrilico'].map(mat=>`
+        <td class="text-center"><input type="number" data-esp="${esp}" data-mat="${mat}" value="${vals[mat]}" class="w-20 border rounded px-1 py-1 text-center" onchange="updateVel(this)"></td>
+      `).join('')}
+    </tr>
+  `).join('');
+}
+
+function updateVel(el){
+  const esp = el.dataset.esp;
+  const mat = el.dataset.mat;
+  velocidades[esp][mat] = Number(el.value)||0;
+  calcular();
+}
+
+function toggleVelocidades(){
+  document.getElementById('velBox').classList.toggle('hidden');
+}
+
+function copiarResumen(){
+  const t = document.getElementById('precioUnit').textContent;
+  const tc = document.getElementById('precioUnitConIva').textContent;
+  const total = document.getElementById('precioTotal').textContent;
+  const area = document.getElementById('rArea').textContent;
+  const tiempo = document.getElementById('rTiempo').textContent;
+  const mat = document.getElementById('material').selectedOptions[0].text;
+  const esp = document.getElementById('espesor').value;
+  const cant = document.getElementById('cantidad').value;
+  const txt = `Corte Láser - ${mat} ${esp}mm - ${cant}u\nÁrea: ${area} | Tiempo: ${tiempo}\nUnitario: ${t} (${tc})\nTotal: ${total}`;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const m=document.getElementById('copyMsg'); m.classList.remove('hidden'); setTimeout(()=>m.classList.add('hidden'),2000);
+  });
+}
+
+function guardarPreset(){
+  calcular();
+  const m=document.getElementById('copyMsg'); m.textContent='Tarifa guardada ✓'; m.classList.remove('hidden'); setTimeout(()=>{m.classList.add('hidden'); m.textContent='Copiado al portapapeles ✓'},2000);
+}
+
+function cargarPresetGuardado(){
+  try{
+    const d=JSON.parse(localStorage.getItem('laserCalc')||'null');
+    if(!d) return;
+    Object.entries(d).forEach(([k,v])=>{
+      const el=document.getElementById(k==='precioM2input'?'precioM2':k);
+      if(el) el.value=v;
+    });
+  }catch(e){}
+}
+
+function aplicarPreset(tipo){
+  if(tipo==='chapa1mm'){
+    document.getElementById('material').value='acero_carbono';
+    document.getElementById('espesor').value='1';
+    document.getElementById('cantidad').value=100;
+    document.getElementById('largo').value=200;
+    document.getElementById('ancho').value=150;
+    document.getElementById('longitud').value=700;
+    document.getElementById('precioKg').value=preciosInternet.acero_carbono.kg;
+    document.getElementById('tarifaMin').value=450;
+  }
+  if(tipo==='inox2mm'){
+    document.getElementById('material').value='inox';
+    document.getElementById('espesor').value='2';
+    document.getElementById('cantidad').value=10;
+    document.getElementById('largo').value=400;
+    document.getElementById('ancho').value=300;
+    document.getElementById('longitud').value=1400;
+    document.getElementById('precioKg').value=preciosInternet.inox.kg;
+    document.getElementById('tarifaMin').value=550;
+  }
+  if(tipo==='mdf3mm'){
+    document.getElementById('material').value='mdf';
+    document.getElementById('espesor').value='3';
+    document.getElementById('potencia').value='1000';
+    document.getElementById('cantidad').value=20;
+    document.getElementById('precioKg').value=preciosInternet.mdf.kg;
+    document.getElementById('tarifaMin').value=280;
+  }
+  if(tipo==='acrilico5mm'){
+    document.getElementById('material').value='acrilico';
+    document.getElementById('espesor').value='5';
+    document.getElementById('potencia').value='1000';
+    document.getElementById('cantidad').value=5;
+    document.getElementById('precioKg').value=preciosInternet.acrilico.kg;
+    document.getElementById('tarifaMin').value=300;
+  }
+  document.getElementById('precioM2').value=0;
+  calcular();
+}
+
+function resetear(){
+  localStorage.removeItem('laserCalc');
+  location.reload();
+}
+
+init();
+</script>
+</body>
+</html>
