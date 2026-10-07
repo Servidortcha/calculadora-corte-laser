@@ -66,6 +66,11 @@
           </div>
         </div>
 
+        <div class="mt-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+          <input id="chapaAportada" type="checkbox" class="w-4 h-4 rounded accent-blue-600">
+          <label for="chapaAportada" class="text-sm font-medium text-blue-900 cursor-pointer select-none">Chapa aportada por el cliente — solo cobrar corte láser (material = $0)</label>
+        </div>
+
         <div class="grid grid-cols-3 gap-4 mt-4">
           <div>
             <label class="text-xs font-semibold text-slate-600 uppercase">Largo (mm)</label>
@@ -101,7 +106,7 @@
       <!-- 2. Costos -->
       <div class="bg-white rounded-2xl shadow-sm p-5">
         <h2 class="font-bold text-slate-900 mb-1 flex items-center gap-2"><span class="bg-blue-600 text-white w-6 h-6 rounded-full grid place-items-center text-xs">2</span> Costos y Tarifas</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" id="camposMaterial">
           <div>
             <label class="text-xs font-semibold text-slate-600 uppercase">Precio material ($ / kg) <span class="text-emerald-600 normal-case">● auto desde internet</span></label>
             <input id="precioKg" type="number" value="2800" class="w-full mt-1 border rounded-xl px-3 py-2.5">
@@ -123,7 +128,7 @@
             <input id="costoPerfo" type="number" value="0" class="w-full mt-1 border rounded-xl px-3 py-2.5">
             <p class="text-[11px] text-slate-400 mt-1">Opcional. Si es 0 se calcula solo por tiempo</p>
           </div>
-          <div>
+          <div id="campoDesperdicio">
             <label class="text-xs font-semibold text-slate-600 uppercase">% Desperdicio / aprovechamiento</label>
             <input id="desperdicio" type="number" value="10" class="w-full mt-1 border rounded-xl px-3 py-2.5">
           </div>
@@ -216,7 +221,7 @@
             <span class="text-slate-400">Tiempo total lote</span><span id="rTiempoTotal" class="font-mono"></span>
           </div>
           <div class="flex justify-between py-2 border-b border-white/10">
-            <span class="text-slate-400">Costo material / u.</span><span id="rMat" class="font-mono"></span>
+            <span class="text-slate-400" id="lblCostoMat">Costo material / u.</span><span id="rMat" class="font-mono"></span>
           </div>
           <div class="flex justify-between py-2 border-b border-white/10">
             <span class="text-slate-400">Costo corte / u.</span><span id="rCorte" class="font-mono"></span>
@@ -241,7 +246,7 @@
         <div class="mt-6 bg-amber-400/20 border border-amber-400/30 rounded-xl p-3 text-xs leading-relaxed text-amber-100">
           <strong class="text-amber-200">Cómo se calcula:</strong><br>
           Peso = Área × Espesor × Densidad<br>
-          $ Material = (Peso × $/kg  ó Área × $/m²) × (1+ desperdicio%)<br>
+          <span id="formulaMat">$ Material = (Peso × $/kg  ó Área × $/m²) × (1+ desperdicio%)<br></span>
           Tiempo = Longitud / Velocidad + Piercings × t_perforación + Setup/lote<br>
           $ Corte = Tiempo × Tarifa/min
         </div>
@@ -255,7 +260,7 @@
           <div id="barMargen" class="bg-emerald-500 h-full" style="width: 30%"></div>
         </div>
         <div class="flex gap-4 mt-2 text-[11px] text-slate-500">
-          <span class="flex items-center gap-1"><span class="w-2 h-2 bg-sky-500 rounded-full"></span> Material</span>
+          <span class="flex items-center gap-1" id="legMat"><span class="w-2 h-2 bg-sky-500 rounded-full"></span> Material</span>
           <span class="flex items-center gap-1"><span class="w-2 h-2 bg-amber-500 rounded-full"></span> Corte</span>
           <span class="flex items-center gap-1"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Margen</span>
         </div>
@@ -326,6 +331,7 @@ function init() {
   if(!hasSaved) aplicarPrecioInternet();
   else cargarPresetGuardado();
   bind();
+  aplicarModoChapa();
   calcular();
   // auto-actualizar precio al cambiar material/espesor si viene de internet
   document.getElementById('material').addEventListener('change', ()=>{
@@ -343,6 +349,31 @@ function bind() {
     document.getElementById(id).addEventListener('input', calcular);
     document.getElementById(id).addEventListener('change', calcular);
   });
+  document.getElementById('chapaAportada').addEventListener('change', ()=>{ aplicarModoChapa(); calcular(); });
+}
+
+function aplicarModoChapa(){
+  const on = document.getElementById('chapaAportada').checked;
+  const secciones = ['camposMaterial','campoDesperdicio'];
+  secciones.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.toggle('hidden', on);
+    el.classList.toggle('opacity-40', on);
+  });
+  // deshabilitar inputs material
+  ['precioKg','precioM2'].forEach(id=>{
+    const inp = document.getElementById(id);
+    if(inp) inp.disabled = on;
+  });
+  const lbl = document.getElementById('lblCostoMat');
+  if(lbl) lbl.textContent = on ? 'Costo material / u. (aportada)' : 'Costo material / u.';
+  const matLegend = document.getElementById('legMat');
+  if(matLegend) matLegend.classList.toggle('hidden', on);
+  const barMat = document.getElementById('barMat');
+  if(barMat) barMat.classList.toggle('hidden', on);
+  const fMat = document.getElementById('formulaMat');
+  if(fMat) fMat.classList.toggle('hidden', on);
 }
 
 function factorPotencia(p){
@@ -385,6 +416,7 @@ function calcular(){
   const setup = Number(document.getElementById('setup').value)||0;
   const margen = Number(document.getElementById('margen').value)||0;
   const iva = Number(document.getElementById('iva').value)||0;
+  const chapaAportada = document.getElementById('chapaAportada').checked;
 
   // area y peso
   const areaM2 = (largo/1000)*(ancho/1000);
@@ -416,7 +448,7 @@ function calcular(){
   const tiempoUnitConSetup = cantidad>0 ? tiempoLoteMin / cantidad : tiempoPiezaMin;
 
   // costos
-  const costoMatUnit = areaM2 * precioM2 * (1 + desperdicio/100);
+  const costoMatUnit = chapaAportada ? 0 : areaM2 * precioM2 * (1 + desperdicio/100);
   const costoCorteUnit = tiempoPiezaMin * tarifaMin + piercings * costoPerfo;
   const costoSetupUnit = cantidad>0 ? (setup * tarifaMin) / cantidad : 0;
   const costoCorteConSetup = costoCorteUnit + costoSetupUnit;
@@ -441,7 +473,8 @@ function calcular(){
   document.getElementById('rVel').textContent = `${vel.toLocaleString('es-AR')} mm/min`;
   document.getElementById('rTiempo').textContent = `${fmt2(tiempoPiezaMin)} min (${fmt2(tiempoPiezaMin*60)} s)`;
   document.getElementById('rTiempoTotal').textContent = `${fmt2(tiempoLoteMin)} min`;
-  document.getElementById('rMat').textContent = fmt(costoMatUnit);
+  document.getElementById('rMat').textContent = chapaAportada ? 'Aportada por cliente' : fmt(costoMatUnit);
+  document.getElementById('rMat').className = chapaAportada ? 'font-mono text-blue-300' : 'font-mono';
   document.getElementById('rCorte').textContent = fmt(costoCorteConSetup);
   document.getElementById('rSetup').textContent = fmt(costoSetupUnit);
   document.getElementById('rSubtotal').textContent = fmt(subtotal);
@@ -460,7 +493,8 @@ function calcular(){
   // guardar en local
   localStorage.setItem('laserCalc', JSON.stringify({
     material, espesor, potencia, cantidad, largo, ancho, longitud, piercings,
-    precioKg, precioM2input, tarifaMin, costoPerfo, desperdicio, setup, margen, iva
+    precioKg, precioM2input, tarifaMin, costoPerfo, desperdicio, setup, margen, iva,
+    chapaAportada
   }));
 }
 
@@ -539,7 +573,9 @@ function copiarResumen(){
   const mat = document.getElementById('material').selectedOptions[0].text;
   const esp = document.getElementById('espesor').value;
   const cant = document.getElementById('cantidad').value;
-  const txt = `Corte Láser - ${mat} ${esp}mm - ${cant}u\nÁrea: ${area} | Tiempo: ${tiempo}\nUnitario: ${t} (${tc})\nTotal: ${total}`;
+  const aportada = document.getElementById('chapaAportada').checked;
+  const lineaMat = aportada ? 'Chapa aportada por el cliente (solo corte)' : `Material: ${mat} ${esp}mm`;
+  const txt = `Corte Láser - ${mat} ${esp}mm - ${cant}u\n${lineaMat}\nÁrea: ${area} | Tiempo: ${tiempo}\nUnitario: ${t} (${tc})\nTotal: ${total}`;
   navigator.clipboard.writeText(txt).then(()=>{
     const m=document.getElementById('copyMsg'); m.classList.remove('hidden'); setTimeout(()=>m.classList.add('hidden'),2000);
   });
@@ -555,9 +591,14 @@ function cargarPresetGuardado(){
     const d=JSON.parse(localStorage.getItem('laserCalc')||'null');
     if(!d) return;
     Object.entries(d).forEach(([k,v])=>{
+      if(k==='chapaAportada'){
+        document.getElementById('chapaAportada').checked = !!v;
+        return;
+      }
       const el=document.getElementById(k==='precioM2input'?'precioM2':k);
       if(el) el.value=v;
     });
+    aplicarModoChapa();
   }catch(e){}
 }
 
